@@ -89,6 +89,10 @@ def make_type(cur_type):
 
 class Path(object):
 	def __init__(self, tag, parent = None, suffix = "", tree = None):
+		# 		if parent is not None and parent.tag == '' and parent.parent is None:
+		# 			# Eliminate synthetic null parent
+		# 			self.parent = None
+		# 		else:
 		self.parent = parent
 		self.tag = tag
 		self.suffix = suffix
@@ -104,15 +108,18 @@ class Path(object):
 				return self.suffix
 
 class ParseError(Exception):
-	def __init__(self, e, path):
+	def __init__(self, e, path=None):
 		self.e = e
 		self.path = path
-		message = "ParseError in {}:\n{}".format(self.path, self.e)
+		if self.path is not None:
+			message = "ParseError in {}:\n{}".format(self.path, self.e)
+		else:
+			message = "ParseError:\n{}".format(self.path, self.e)
 		super(ParseError, self).__init__(message)
 
 class ValueType(object):
 	""" Primitive value type """
-	def from_xml(self, node, path):
+	def from_xml(self, node, path=None):
 		return self.from_string(node.text)
 	
 	def write_xml(self, node, value):
@@ -160,7 +167,7 @@ class VectorType(ListType):
 
 class RawType(ValueType):
 	""" Simple, raw XML value. Need to bugfix putting this back into a document """
-	def from_xml(self, node, path):
+	def from_xml(self, node, path=None):
 		return node
 	
 	def write_xml(self, node, value):
@@ -179,7 +186,7 @@ class SimpleElementType(ValueType):
 	def __init__(self, attribute, value_type):
 		self.attribute = attribute
 		self.value_type = get_type(value_type)
-	def from_xml(self, node, path):
+	def from_xml(self, node, path=None):
 		text = node.get(self.attribute)
 		return self.value_type.from_string(text)
 	def write_xml(self, node, value):
@@ -190,7 +197,7 @@ class ObjectType(ValueType):
 	def __init__(self, cur_type):
 		self.type = cur_type
 		
-	def from_xml(self, node, path):
+	def from_xml(self, node, path=None):
 		obj = self.type()
 		obj.read_xml(node, path)
 		return obj
@@ -207,7 +214,7 @@ class FactoryType(ValueType):
 			# Reverse lookup
 			self.nameMap[value] = key
 	
-	def from_xml(self, node, path):
+	def from_xml(self, node, path=None):
 		cur_type = self.typeMap.get(node.tag)
 		if cur_type is None:
 			raise Exception("Invalid {} tag: {}".format(self.name, node.tag))
@@ -230,7 +237,7 @@ class DuckTypedFactory(ValueType):
 		assert len(typeOrder) > 0
 		self.type_order = typeOrder
 	
-	def from_xml(self, node, path):
+	def from_xml(self, node, path=None):
 		error_set = []
 		for value_type in self.type_order:
 			try:
@@ -307,7 +314,7 @@ class Element(Param):
 		self.type = 'element'
 		self.is_raw = is_raw
 		
-	def set_from_xml(self, obj, node, path):
+	def set_from_xml(self, obj, node, path=None):
 		value = self.value_type.from_xml(node, path)
 		setattr(obj, self.var, value)
 	
@@ -336,7 +343,7 @@ class AggregateElement(Element):
 		Element.__init__(self, xml_var, value_type, required = False, var = var, is_raw = is_raw)
 		self.is_aggregate = True
 		
-	def add_from_xml(self, obj, node, path):
+	def add_from_xml(self, obj, node, path=None):
 		value = self.value_type.from_xml(node, path)
 		obj.add_aggregate(self.xml_var, value)
 	
@@ -409,6 +416,8 @@ class Reflection(object):
 			is_final = True
 			info = Info(node)
 		
+		if path is None:
+			path = Path('')
 		if self.parent:
 			path = self.parent.set_from_xml(obj, node, path, info)
 		
@@ -539,7 +548,7 @@ class Object(YamlReflection):
 	def post_read_xml(self):
 		pass
 	
-	def read_xml(self, node, path):
+	def read_xml(self, node, path=None):
 		self.XML_REFL.set_from_xml(self, node, path)
 		self.post_read_xml()
 		try:
@@ -550,7 +559,7 @@ class Object(YamlReflection):
 			raise ParseError(e, path)
 	
 	@classmethod
-	def from_xml(cls, node, path):
+	def from_xml(cls, node, path=None):
 		cur_type = get_type(cls)
 		return cur_type.from_xml(node, path)
 	
