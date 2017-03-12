@@ -26,28 +26,47 @@ class TestURDFParserError(unittest.TestCase):
             func(*args, **kwds)
         e = cm.exception
         self.assertEqual(str(e.path), str(path))
+    
+    def getParseFuncs(self, cls, xml_string):
+        """ Check XML parsing of a given string, using both "from_xml_string" and "parse" """
+        # Static method for parsing an object
+        # TODO: Use parameterized tests to decide which method to use
+        def preclean(func):
+            def op():
+                # Dirty hack to clean external state
+                self.tearDown()
+                self.setUp()
+                func()
+            return op
+        use_static = lambda: cls.from_xml_string(xml_string)
+        # Bound method for parsing an object (backwards compatibility)
+        use_bound = lambda: cls().parse(xml_string)
+        return [use_static, preclean(use_bound)]
         
     def test_unknown_tag(self):
         xml_string = '''<?xml version="1.0"?>
 <link name="b">
     <unknown_element/>
 </link>'''
-        func = lambda: urdf.Link.from_xml_string(xml_string)
+        funcs = self.getParseFuncs(urdf.Link, xml_string)
         errors_expected = ['Unknown tag "unknown_element" in /link[@name=\'b\']']
-        self.assertLoggedErrors(errors_expected, func)
+        for func in funcs:
+            self.assertLoggedErrors(errors_expected, func)
     
     def test_unknown_attribute(self):
         xml_string = '''<?xml version="1.0"?>
 <link name="b" unknown_attribute="nothing useful"/>'''
-        func = lambda: urdf.Link.from_xml_string(xml_string)
+        funcs = self.getParseFuncs(urdf.Link, xml_string)
         errors_expected = ['Unknown attribute "unknown_attribute" in /link[@name=\'b\']']
-        self.assertLoggedErrors(errors_expected, func)
+        for func in funcs:
+            self.assertLoggedErrors(errors_expected, func)
     
     def test_unset_required_name_link(self):
         xml_string = '''<?xml version="1.0"?>
 <link/>'''
-        func = lambda: urdf.Link.from_xml_string(xml_string)
-        self.assertParseErrorPath('/link', func)
+        funcs = self.getParseFuncs(urdf.Link, xml_string)
+        for func in funcs:
+            self.assertParseErrorPath('/link', func)
     
     def test_invalid_joint_type(self):
         xml_string = '''<?xml version="1.0"?>
@@ -55,8 +74,9 @@ class TestURDFParserError(unittest.TestCase):
     <parent link="parent"/>
     <child link="child"/>
 </joint>'''
-        func = lambda: urdf.Joint.from_xml_string(xml_string)
-        self.assertParseErrorPath("/joint[@name='bad_joint']", func)
+        funcs = self.getParseFuncs(urdf.Joint, xml_string)
+        for func in funcs:
+            self.assertParseErrorPath("/joint[@name='bad_joint']", func)
     
     def test_invalid_joint_type_in_robot(self):
         xml_string = '''<?xml version="1.0"?>
@@ -66,8 +86,9 @@ class TestURDFParserError(unittest.TestCase):
         <child link="child"/>
     </joint>
 </robot>'''
-        func = lambda: urdf.Robot.from_xml_string(xml_string)
-        self.assertParseErrorPath("/robot[@name='test']/joint[@name='bad_joint']", func)
+        funcs = self.getParseFuncs(urdf.Robot, xml_string)
+        for func in funcs:
+            self.assertParseErrorPath("/robot[@name='test']/joint[@name='bad_joint']", func)
     
     def test_unset_required_name_aggregate_in_robot(self):
         """ Show that an aggregate with an unset name still has its index specified """
@@ -76,8 +97,9 @@ class TestURDFParserError(unittest.TestCase):
     <link name="good"/>
     <link name_BAD="bad"/>
 </robot>'''
-        func = lambda: urdf.Robot.from_xml_string(xml_string)
-        self.assertParseErrorPath("/robot[@name='test']/link[2]", func)
+        funcs = self.getParseFuncs(urdf.Robot, xml_string)
+        for func in funcs:
+            self.assertParseErrorPath("/robot[@name='test']/link[2]", func)
 
     def test_unset_required_name_aggregate_ducktype(self):
         """ If an aggregate duck-typed element does not have a required attribute, ensure it is reported with the index """
@@ -85,8 +107,9 @@ class TestURDFParserError(unittest.TestCase):
 <robot name="test">
   <transmission name_BAD="bad_trans"/>
 </robot>'''
-        func = lambda: urdf.Robot.from_xml_string(xml_string)
-        self.assertParseErrorPath("/robot[@name='test']/transmission[1]", func)
+        funcs = self.getParseFuncs(urdf.Robot, xml_string)
+        for func in funcs:
+            self.assertParseErrorPath("/robot[@name='test']/transmission[1]", func)
 
     def test_bad_inertial_origin_xyz(self):
         xml_string = '''<?xml version="1.0"?>
@@ -97,8 +120,9 @@ class TestURDFParserError(unittest.TestCase):
         </inertial>
     </link>
 </robot>'''
-        func = lambda: urdf.Robot.from_xml_string(xml_string)
-        self.assertParseErrorPath("/robot[@name='test']/link[@name='b']/inertial/origin[@xyz]", func)
+        funcs = self.getParseFuncs(urdf.Robot, xml_string)
+        for func in funcs:
+            self.assertParseErrorPath("/robot[@name='test']/link[@name='b']/inertial/origin[@xyz]", func)
 
     def test_bad_ducktype(self):
         xml_string = '''<?xml version="1.0"?>
@@ -118,8 +142,9 @@ class TestURDFParserError(unittest.TestCase):
     </joint>
   </transmission>
 </robot>'''
-        func = lambda: urdf.Robot.from_xml_string(xml_string)
-        self.assertParseErrorPath("/robot[@name='test']/transmission[@name='simple_trans_bad']", func)
+        funcs = self.getParseFuncs(urdf.Robot, xml_string)
+        for func in funcs:
+            self.assertParseErrorPath("/robot[@name='test']/transmission[@name='simple_trans_bad']", func)
 
 if __name__ == '__main__':
     unittest.main()

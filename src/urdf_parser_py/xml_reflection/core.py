@@ -608,7 +608,8 @@ class Object(YamlReflection):
 	""" Compatibility """
 	def parse(self, xml_string):
 		node = etree.fromstring(xml_string)
-		self.read_xml(node)
+		path = Path(self.XML_REFL.tag, tree = etree.ElementTree(node))
+		self.read_xml(node, path)
 		return self
 
 # Really common types
