@@ -103,8 +103,22 @@ class Path(object):
 			else:
 				return self.suffix
 
+	@classmethod
+	def set(cls, node, value):
+		""" Set node's path to a given value """
+		setattr(node, 'xmlr_path', value)
+
+	@classmethod
+	def get(cls, node):
+		path = getattr(node, 'xmlr_path', None)
+		if path is None:
+			# Set to a Path instance if it does not exist
+			path = Path('')
+			Path.set(node, path)
+		return path
+
 class ParseError(Exception):
-	def __init__(self, e, path=None):
+	def __init__(self, e, path):
 		self.e = e
 		self.path = path
 		if self.path is not None:
@@ -115,7 +129,7 @@ class ParseError(Exception):
 
 class ValueType(object):
 	""" Primitive value type """
-	def from_xml(self, node, path=None):
+	def from_xml(self, node):
 		return self.from_string(node.text)
 	
 	def write_xml(self, node, value):
@@ -163,7 +177,7 @@ class VectorType(ListType):
 
 class RawType(ValueType):
 	""" Simple, raw XML value. Need to bugfix putting this back into a document """
-	def from_xml(self, node, path=None):
+	def from_xml(self, node):
 		return node
 	
 	def write_xml(self, node, value):
@@ -182,7 +196,7 @@ class SimpleElementType(ValueType):
 	def __init__(self, attribute, value_type):
 		self.attribute = attribute
 		self.value_type = get_type(value_type)
-	def from_xml(self, node, path=None):
+	def from_xml(self, node):
 		text = node.get(self.attribute)
 		return self.value_type.from_string(text)
 	def write_xml(self, node, value):
@@ -193,9 +207,9 @@ class ObjectType(ValueType):
 	def __init__(self, cur_type):
 		self.type = cur_type
 		
-	def from_xml(self, node, path=None):
+	def from_xml(self, node):
 		obj = self.type()
-		obj.read_xml(node, path)
+		obj.read_xml(node)
 		return obj
 	
 	def write_xml(self, node, obj):
@@ -210,12 +224,12 @@ class FactoryType(ValueType):
 			# Reverse lookup
 			self.nameMap[value] = key
 	
-	def from_xml(self, node, path=None):
+	def from_xml(self, node):
 		cur_type = self.typeMap.get(node.tag)
 		if cur_type is None:
 			raise Exception("Invalid {} tag: {}".format(self.name, node.tag))
 		value_type = get_type(cur_type)
-		return value_type.from_xml(node, path)
+		return value_type.from_xml(node)
 	
 	def get_name(self, obj):
 		cur_type = type(obj)
@@ -233,11 +247,12 @@ class DuckTypedFactory(ValueType):
 		assert len(typeOrder) > 0
 		self.type_order = typeOrder
 	
-	def from_xml(self, node, path=None):
+	def from_xml(self, node):
 		error_set = []
+		path = Path.get(node)
 		for value_type in self.type_order:
 			try:
-				return value_type.from_xml(node, path)
+				return value_type.from_xml(node)
 			except Exception as e:
 				error_set.append((value_type, e))
 		# Should have returned, we encountered errors
@@ -310,8 +325,8 @@ class Element(Param):
 		self.type = 'element'
 		self.is_raw = is_raw
 		
-	def set_from_xml(self, obj, node, path=None):
-		value = self.value_type.from_xml(node, path)
+	def set_from_xml(self, obj, node):
+		value = self.value_type.from_xml(node)
 		setattr(obj, self.var, value)
 	
 	def add_to_xml(self, obj, parent):
@@ -339,8 +354,8 @@ class AggregateElement(Element):
 		Element.__init__(self, xml_var, value_type, required = False, var = var, is_raw = is_raw)
 		self.is_aggregate = True
 		
-	def add_from_xml(self, obj, node, path=None):
-		value = self.value_type.from_xml(node, path)
+	def add_from_xml(self, obj, node):
+		value = self.value_type.from_xml(node)
 		obj.add_aggregate(self.xml_var, value)
 	
 	def set_default(self, obj):
@@ -406,16 +421,15 @@ class Reflection(object):
 				self.scalars.append(element)
 				self.scalarNames.append(element.xml_var)
 	
-	def set_from_xml(self, obj, node, path, info = None):
+	def set_from_xml(self, obj, node, info = None):
 		is_final = False
 		if info is None:
 			is_final = True
 			info = Info(node)
 		
-		if path is None:
-			path = Path('')
 		if self.parent:
-			path = self.parent.set_from_xml(obj, node, path, info)
+			self.parent.set_from_xml(obj, node, info)
+		path = Path.get(node)
 		
 		# Make this a map instead? Faster access? {name: isSet} ?
 		unset_attributes = list(self.attribute_map.keys())
@@ -460,11 +474,12 @@ class Reflection(object):
 			if element is not None:
 				# Name will have been set
 				element_path = get_element_path(element)
+				Path.set(child, element_path)
 				if element.is_aggregate:
-					element.add_from_xml(obj, child, element_path)
+					element.add_from_xml(obj, child)
 				else:
 					if tag in unset_scalars:
-						element.set_from_xml(obj, child, element_path)
+						element.set_from_xml(obj, child)
 						unset_scalars.remove(tag)
 					else:
 						on_error("Scalar element defined multiple times: {}".format(tag))
@@ -495,8 +510,6 @@ class Reflection(object):
 				on_error('Unknown attribute "{}" in {}'.format(xml_var, path))
 			for node in info.children:
 				on_error('Unknown tag "{}" in {}'.format(node.tag, path))
-		# Allow children parsers to adopt this current path (if modified with id_var)
-		return path
 	
 	def add_to_xml(self, obj, node):
 		if self.parent:
@@ -544,26 +557,27 @@ class Object(YamlReflection):
 	def post_read_xml(self):
 		pass
 	
-	def read_xml(self, node, path=None):
-		self.XML_REFL.set_from_xml(self, node, path)
+	def read_xml(self, node):
+		self.XML_REFL.set_from_xml(self, node)
 		self.post_read_xml()
 		try:
 			self.check_valid()
 		except ParseError:
 			raise
 		except Exception, e:
-			raise ParseError(e, path)
+			raise ParseError(e, Path.get(node))
 	
 	@classmethod
-	def from_xml(cls, node, path=None):
+	def from_xml(cls, node):
 		cur_type = get_type(cls)
-		return cur_type.from_xml(node, path)
+		return cur_type.from_xml(node)
 	
 	@classmethod
 	def from_xml_string(cls, xml_string):
 		node = etree.fromstring(xml_string)
 		path = Path(cls.XML_REFL.tag, tree = etree.ElementTree(node))
-		return cls.from_xml(node, path)
+		Path.set(node, path)
+		return cls.from_xml(node)
 	
 	@classmethod
 	def from_xml_file(cls, file_path):
@@ -614,7 +628,8 @@ class Object(YamlReflection):
 	def parse(self, xml_string):
 		node = etree.fromstring(xml_string)
 		path = Path(self.XML_REFL.tag, tree = etree.ElementTree(node))
-		self.read_xml(node, path)
+		Path.set(node, path)
+		self.read_xml(node)
 		return self
 
 # Really common types
