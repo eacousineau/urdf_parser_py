@@ -1,7 +1,6 @@
 from urdf_parser_py.xml_reflection.basics import *
 import sys
 import copy
-from weakref import WeakKeyDictionary
 
 # @todo Get rid of "import *"
 # @todo Make this work with decorators
@@ -104,9 +103,8 @@ class Path(object):
 			else:
 				return self.suffix
 	
-	# Store as WeakKeyDictionary so that the entries (with nodes as keys) are garbage collected when the 
-	# nodes are gone
-	__node_map = WeakKeyDictionary()
+	# Store mapping. Cannot use weakref.WeakKeyDictionary
+	__node_map = dict()
 	
 	@classmethod
 	def set(cls, node, value):
@@ -118,9 +116,20 @@ class Path(object):
 		path = cls.__node_map.get(node, None)
 		if path is None:
 			# Set to a Path instance if it does not exist
-			path = Path('')
-			Path.set(node, path)
+			path = cls('')
+			cls.set(node, path)
 		return path
+	
+	@classmethod
+	def clear_context(cls):
+		cls.__node_map.clear()
+
+class PathMappingContext(object):
+	def __enter__(self):
+		pass
+	def __exit__(self, *args):
+		# Cannot think of a way to more atomically monitor this... Will not be thread-safe...
+		Path.clear_context()
 
 class ParseError(Exception):
 	def __init__(self, e, path):
@@ -580,13 +589,15 @@ class Object(YamlReflection):
 	@classmethod
 	def from_xml_string(cls, xml_string):
 		node = etree.fromstring(xml_string)
-		path = Path(cls.XML_REFL.tag, tree = etree.ElementTree(node))
-		Path.set(node, path)
-		return cls.from_xml(node)
+		with PathMappingContext():
+			path = Path(cls.XML_REFL.tag, tree = etree.ElementTree(node))
+			Path.set(node, path)
+			obj = cls.from_xml(node)
+		return obj
 	
 	@classmethod
 	def from_xml_file(cls, file_path):
-		xml_string= open(file_path, 'r').read()
+		xml_string = open(file_path, 'r').read()
 		return cls.from_xml_string(xml_string)
 
 	# Confusing distinction between loading code in object and reflection registry thing...
@@ -632,9 +643,10 @@ class Object(YamlReflection):
 	""" Compatibility """
 	def parse(self, xml_string):
 		node = etree.fromstring(xml_string)
-		path = Path(self.XML_REFL.tag, tree = etree.ElementTree(node))
-		Path.set(node, path)
-		self.read_xml(node)
+		with PathMappingContext():
+			path = Path(self.XML_REFL.tag, tree = etree.ElementTree(node))
+			Path.set(node, path)
+			self.read_xml(node)
 		return self
 
 # Really common types
