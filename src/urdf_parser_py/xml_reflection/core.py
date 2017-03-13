@@ -1,6 +1,7 @@
 from urdf_parser_py.xml_reflection.basics import *
 import sys
 import copy
+from weakref import WeakKeyDictionary
 
 # @todo Get rid of "import *"
 # @todo Make this work with decorators
@@ -102,15 +103,19 @@ class Path(object):
 				return "/{}{}".format(self.tag, self.suffix)
 			else:
 				return self.suffix
-
+	
+	# Store as WeakKeyDictionary so that the entries (with nodes as keys) are garbage collected when the 
+	# nodes are gone
+	__node_map = WeakKeyDictionary()
+	
 	@classmethod
 	def set(cls, node, value):
 		""" Set node's path to a given value """
-		setattr(node, 'xmlr_path', value)
-
+		cls.__node_map[node] = value
+	
 	@classmethod
 	def get(cls, node):
-		path = getattr(node, 'xmlr_path', None)
+		path = cls.__node_map.get(node, None)
 		if path is None:
 			# Set to a Path instance if it does not exist
 			path = Path('')
