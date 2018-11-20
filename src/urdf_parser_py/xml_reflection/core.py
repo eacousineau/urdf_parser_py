@@ -160,12 +160,14 @@ class ListType(ValueType):
 
 
 class VectorType(ListType):
+    count = _now_private_property('_count')
+
     def __init__(self, count=None):
-        self.count = count
+        self._count = count
 
     def check(self, values):
-        if self.count is not None:
-            assert len(values) == self.count, "Invalid vector length"
+        if self._count is not None:
+            assert len(values) == self._count, "Invalid vector length"
 
     def to_string(self, values):
         self.check(values)
@@ -229,6 +231,9 @@ class ObjectType(ValueType):
 
 
 class FactoryType(ValueType):
+    typeMap = _now_private_property('_typeMap')
+    nameMap = _now_private_property('_nameMap')
+
     def __init__(self, name, typeMap):
         self.name = name
         self._typeMap = typeMap
@@ -256,6 +261,8 @@ class FactoryType(ValueType):
 
 
 class DuckTypedFactory(ValueType):
+    type_order = _now_private_property('_type_order')
+
     def __init__(self, name, typeOrder):
         self.name = name
         assert len(typeOrder) > 0

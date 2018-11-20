@@ -6,20 +6,7 @@ import functools
 import warnings
 
 
-# def _now_private_function(private):
-#     # Deprecates a function that has a (new) private alias.
-
-#     def wrapped(*args, **kwargs):
-#         warnings.warn(
-#             "{} is now private; please do not use.".format(non_private),
-#             category=DeprecationWarning, stacklevel=2)
-#         return private(*args, **kwargs)
-
-#     functools.update_wrapper(wrapped, private)
-#     return wrapped
-
-
-class _PrivateAlias(object):
+class _NowPrivateDescriptor(object):
     def __init__(self, private):
         self._private = private
         self.__doc__ = "Deprecated propery"
@@ -48,4 +35,4 @@ class _PrivateAlias(object):
 
 def _now_private_property(private):
     # Indicates that a property (or method) is now private.
-    return _PrivateAlias(private)
+    return _NowPrivateDescriptor(private)
