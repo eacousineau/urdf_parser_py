@@ -1,8 +1,10 @@
 from __future__ import print_function
 
+from contextlib import contextmanager
 from os.path import abspath, dirname, join
 import unittest
 import sys
+import warnings
 from xml.dom import minidom  # noqa
 
 import mock
@@ -21,7 +23,12 @@ class ParseException(Exception):
     pass
 
 
-class TestURDFParser(unittest.TestCase):
+class TestBase(unittest.TestCase):
+  def setUp(self):
+      warnings.simplefilter('error', DeprecationWarning)
+
+
+class TestURDFParser(TestBase):
     @mock.patch('urdf_parser_py._xml_reflection.on_error',
                 mock.Mock(side_effect=ParseException))
     def parse(self, xml):
@@ -146,7 +153,7 @@ class TestURDFParser(unittest.TestCase):
         self.assertRaises(ParseException, self.parse, xml)
 
 
-class LinkOriginTestCase(unittest.TestCase):
+class LinkOriginTestCase(TestBase):
     @mock.patch('urdf_parser_py._xml_reflection.on_error',
                 mock.Mock(side_effect=ParseException))
     def parse(self, xml):
@@ -183,7 +190,22 @@ class LinkOriginTestCase(unittest.TestCase):
         self.assertEquals(origin.rpy, [0, 0, 0])
 
 
-class TestExampleRobots(unittest.TestCase):
+class TestDeprecation(TestBase):
+    """Tests deprecated interfaces."""
+    @contextmanager
+    def catch_warnings(self):
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter('once', DeprecationWarning)
+            yield w
+
+    def test_check_valid(self):
+        with self.catch_warnings() as w:
+            urdf.Pose().check_valid()
+            self.assertEqual(len(w), 1)
+            self.assertIn("check_valid", str(w[0].message))
+
+
+class TestExampleRobots(TestBase):
     """Tests that some samples files can be parsed without error."""
     @unittest.skip("Badly formatted transmissions")
     def test_calvin_urdf(self):

@@ -1,3 +1,4 @@
+from urdf_parser_py import _now_private_property
 from urdf_parser_py.xml_reflection.basics import *
 import urdf_parser_py._xml_reflection as _xmlr
 

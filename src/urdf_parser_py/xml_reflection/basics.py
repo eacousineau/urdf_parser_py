@@ -8,6 +8,8 @@ from xml.etree.ElementTree import ElementTree
 from lxml import etree
 import yaml
 
+from urdf_parser_py import _now_private_property
+
 __all__ = [
     "xml_string",
     "dict_sub",
@@ -99,6 +101,8 @@ def to_yaml(obj):
 class SelectiveReflection(object):
     def _get_refl_vars(self):
         return list(vars(self).keys())
+
+    get_refl_vars = _now_private_property('_get_refl_vars')
 
 
 class YamlReflection(SelectiveReflection):

@@ -1,3 +1,4 @@
+from urdf_parser_py import _now_private_property
 import urdf_parser_py._xml_reflection as _xmlr
 
 # What is the scope of plugins? Model, World, Sensor?
@@ -15,29 +16,29 @@ class Pose(_xmlr.Object):
             if len == 3:
                 xyz = vec
             else:
-                self._from_vec(vec)
+                self.from_vec(vec)
         elif extra is not None:
             assert xyz is None, "Cannot specify 6-length vector and 3-length vector"  # noqa
             assert len(extra) == 3, "Invalid length"
             self.rpy = extra
 
-    def _from_vec(self, vec):
+    def from_vec(self, vec):
         assert len(vec) == 6, "Invalid length"
         self.xyz = vec[:3]
         self.rpy = vec[3:6]
 
-    def _as_vec(self):
+    def as_vec(self):
         xyz = self.xyz if self.xyz else [0, 0, 0]
         rpy = self.rpy if self.rpy else [0, 0, 0]
         return xyz + rpy
 
-    def _read_xml(self, node):
+    def read_xml(self, node):
         # Better way to do this? Define type?
         vec = _xmlr.get_type('vector6').read_xml(node)
-        self._load_vec(vec)
+        self.from_vec(vec)
 
-    def _write_xml(self, node):
-        vec = self._as_vec()
+    def write_xml(self, node):
+        vec = self.as_vec()
         _xmlr.get_type('vector6').write_xml(node, vec)
 
     def _check_valid(self):

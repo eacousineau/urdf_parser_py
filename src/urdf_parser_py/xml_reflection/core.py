@@ -4,6 +4,7 @@ import copy
 import sys
 
 # Backwards compatibility.
+from urdf_parser_py import _now_private_property
 from urdf_parser_py.xml_reflection.basics import *
 
 __all__ = [
@@ -507,12 +508,17 @@ class Reflection(object):
 class Object(YamlReflection):
     """ Raw python object for yaml / xml representation """
     _XML_REFL = None
+    XML_REFL = _now_private_property('_XML_REFL')
 
     def _get_refl_vars(self):
         return self._XML_REFL.vars
 
     def _check_valid(self):
         pass
+
+    check_valid = _now_private_property('_check_valid')
+    pre_write_xml = _now_private_property('_pre_write_xml')
+    post_read_xml = _now_private_property('_post_read_xml')
 
     def _pre_write_xml(self):
         """ If anything needs to be converted prior to dumping to xml
@@ -562,6 +568,12 @@ class Object(YamlReflection):
     # Confusing distinction between loading code in object and reflection
     # registry thing...
 
+    get_aggregate_list = _now_private_property('_get_aggregate_list')
+    add_aggregate = _now_private_property('_add_aggregate')
+    add_aggregates_to_xml = _now_private_property('_add_aggregates_to_xml')
+    remove_aggregate = _now_private_property('_remove_aggregate')
+    lump_aggregates = _now_private_property('_lump_aggregates')
+
     def _get_aggregate_list(self, xml_var):
         var = self._XML_REFL.paramMap[xml_var].var
         values = getattr(self, var)
@@ -600,7 +612,6 @@ class Object(YamlReflection):
             for obj in self._get_aggregate_list(param.xml_var):
                 self._add_aggregate(param.var, obj)
 
-    
     def parse(self, xml_string):
         """ Backwards compatibility """
         node = etree.fromstring(xml_string)
