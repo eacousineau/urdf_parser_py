@@ -128,18 +128,18 @@ class _GeometricType(_xmlr.ValueType):
             'mesh': Mesh
         })
 
-    def _from_xml(self, node, path):
+    def read_xml_value(self, node, path):
         children = _xmlr.xml_children(node)
         assert len(children) == 1, 'One element only for geometric'
-        return self.factory._from_xml(children[0], path=path)
+        return self.factory.read_xml_value(children[0], path=path)
 
-    def _write_xml(self, node, obj):
+    def write_xml_value(self, node, obj):
         name = self.factory.get_name(obj)
         child = _xmlr.node_add(node, name)
         obj._write_xml(child)
 
 
-# Now private.
+# TODO(eacousineau): Deprecate public access.
 GeometricType = _GeometricType
 
 

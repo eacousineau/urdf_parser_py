@@ -1,13 +1,30 @@
 from __future__ import print_function
 
+from os.path import abspath, dirname, join
+import sys
 import unittest
+import warnings
+
+# TODO(eacousineau): Can CTest somehow provide this?
+TEST_DIR = dirname(abspath(__file__))
+sys.path.append(TEST_DIR)
+sys.path.append(join(dirname(TEST_DIR), 'src'))
+
 from urdf_parser_py import urdf
 import urdf_parser_py.xml_reflection as xmlr
 
 ParseError = xmlr.core.ParseError
 
-class TestURDFParserError(unittest.TestCase):
+
+class TestBase(unittest.TestCase):
+  def setUp(self):
+      # Ensure that all deprecations are seen as errors.
+      warnings.simplefilter('error', DeprecationWarning)
+
+
+class TestURDFParserError(TestBase):
     def setUp(self):
+        TestBase.setUp(self)
         # Manually patch "on_error" to capture errors
         self.errors = []
         def add_error(message):
@@ -145,6 +162,7 @@ class TestURDFParserError(unittest.TestCase):
         funcs = self.getParseFuncs(urdf.Robot, xml_string)
         for func in funcs:
             self.assertParseErrorPath("/robot[@name='test']/transmission[@name='simple_trans_bad']", func)
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -316,7 +316,7 @@ class DuckTypedFactory(ValueType):
     def __init__(self, name, typeOrder):
         self.name = name
         assert len(typeOrder) > 0
-        self._type_order = typeOrder
+        self._type_order = [get_type(x) for x in typeOrder]
 
     def read_xml_value(self, node, path):
         error_set = []
