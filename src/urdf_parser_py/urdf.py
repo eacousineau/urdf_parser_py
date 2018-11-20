@@ -134,7 +134,7 @@ class _GeometricType(_xmlr.ValueType):
         return self.factory._from_xml(children[0], path=path)
 
     def _write_xml(self, node, obj):
-        name = self.factory._get_name(obj)
+        name = self.factory.get_name(obj)
         child = _xmlr.node_add(node, name)
         obj._write_xml(child)
 
@@ -391,7 +391,7 @@ _xmlr.reflect(Link, tag='link', params=[
     _origin_element,
     _xmlr.AggregateElement('visual', Visual),
     _xmlr.AggregateElement('collision', Collision),
-    _xmlr.Element('inertial', Inertial, False),
+    _xmlr.Element('inertial', Inertial, required=False),
 ])
 
 
@@ -484,8 +484,6 @@ class Robot(_xmlr.Object):
 
         self.parent_map = {}
         self.child_map = {}
-
-    add_aggregate = _now_private_property('_add_aggregate')
 
     def _add_aggregate(self, typeName, elem):
         _xmlr.Object._add_aggregate(self, typeName, elem)

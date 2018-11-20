@@ -1,4 +1,3 @@
-# TODO(eacousineau): Deprecate public access.
 import collections
 import string
 # TODO(eacousineau): Leverage tfoote's PR.
@@ -7,6 +6,7 @@ from xml.etree.ElementTree import ElementTree
 from lxml import etree
 import yaml
 
+# TODO(eacousineau): Deprecate public access.
 from urdf_parser_py import _now_private_property
 
 __all__ = [

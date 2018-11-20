@@ -1,9 +1,9 @@
-# TODO(eacousineau): Deprecate public access.
 import copy
 import sys
 
 # Backwards compatibility.
-from urdf_parser_py import _now_private_property
+# TODO(eacousineau): Deprecate public access.
+from urdf_parser_py import _now_private_property, _renamed_property
 from urdf_parser_py.xml_reflection.basics import *
 
 __all__ = [
@@ -36,6 +36,11 @@ __all__ = [
     "Reflection",
     "Object",
 ]
+
+# Unless otherwise stated, all functions and classes are not intedned to be
+# user-visible. Once deprecation is complete and public access is removed, then
+# these implementation details should not need to worry about backwards
+# compatibility.
 
 
 def reflect(cls, *args, **kwargs):
@@ -75,6 +80,7 @@ def end_namespace():
 
 
 def add_type(key, value):
+    """Adds a type to the regsitry."""
     if isinstance(key, str):
         key = value_type_prefix + key
     assert key not in value_types
@@ -82,7 +88,9 @@ def add_type(key, value):
 
 
 def get_type(cur_type):
-    """ Can wrap value types if needed """
+    """Retrieves type from registry.
+    If this is not registered, it will be implicitly registered."""
+    # TODO(eacousineau): Remove confusing implicit behavior.
     if value_type_prefix and isinstance(cur_type, str):
         # See if it exists in current 'namespace'
         curKey = value_type_prefix + cur_type
@@ -99,6 +107,8 @@ def get_type(cur_type):
 
 
 def make_type(cur_type):
+    """Creates a wrapping `ValueType` instance for `cur_type`."""
+    # TODO(eacousineau): Remove this, and use direct instances.
     if isinstance(cur_type, ValueType):
         return cur_type
     elif isinstance(cur_type, str):
@@ -122,6 +132,8 @@ def make_type(cur_type):
 
 
 class Path(object):
+    """Records path information for producing XPath-like references in errors.
+    """
     def __init__(self, tag, parent=None, suffix="", tree=None):
         self.parent = parent
         self.tag = tag
@@ -139,6 +151,7 @@ class Path(object):
 
 
 class ParseError(Exception):
+    """Indicates a parser error at a given path."""
     def __init__(self, e, path):
         self.e = e
         self.path = path
@@ -147,21 +160,26 @@ class ParseError(Exception):
 
 
 class ValueType(object):
-    """ Primitive value type """
-
-    def _from_xml(self, node, path):
+    """Primitive value type. Default semantics based on string parsing."""
+    # TODO(eacousineau): Delegate string semantics to child class, so that this
+    # can be a pure ABC.
+    def read_xml_value(self, node, path):
+        """Reads value from a node and returns the value.
+        Can be overridden in child classes."""
         return self.from_string(node.text)
 
-    def _write_xml(self, node, value):
-        """
-        If type has '_write_xml', this function should expect to have it's own
-        XML already created i.e., In Axis.to_sdf(self, node), 'node' would be
-        the 'axis' element.
-        @todo Add function that makes an XML node completely independently?
+    def write_xml_value(self, node, value):
+        """Writes value to a node (that must already exist).
+        Can be overridden in child classes.
         """
         node.text = self.to_string(value)
 
-    def equals(self, a, b):
+    from_xml = _renamed_property('from_xml', 'read_xml_value')
+    write_xml = _renamed_property('write_xml', 'write_xml_value')
+    equals = _now_private_property('_equals')
+
+    def _equals(self, a, b):
+        # TODO(eacousineau): Remove this.
         return a == b
 
 
@@ -183,8 +201,9 @@ class ListType(ValueType):
     def from_string(self, text):
         return text.split()
 
-    def equals(self, aValues, bValues):
-        return len(aValues) == len(bValues) and all(a == b for (a, b) in zip(aValues, bValues))  # noqa
+    def _equals(self, aValues, bValues):
+        return (len(aValues) == len(bValues) and
+                all(a == b for (a, b) in zip(aValues, bValues)))
 
 
 class VectorType(ListType):
@@ -213,17 +232,18 @@ class RawType(ValueType):
     Simple, raw XML value. Need to bugfix putting this back into a document
     """
 
-    def _from_xml(self, node, path):
+    def read_xml_value(self, node, path):
         return node
 
-    def _write_xml(self, node, value):
-        # @todo rying to insert an element at root level seems to screw up
+    def write_xml_value(self, node, value):
+        # @todo Trying to insert an element at root level seems to screw up
         # pretty printing
         children = xml_children(value)
         list(map(node.append, children))
         # Copy attributes
         for (attrib_key, attrib_value) in value.attrib.iteritems():
             node.set(attrib_key, attrib_value)
+
 
 
 class SimpleElementType(ValueType):
@@ -236,25 +256,27 @@ class SimpleElementType(ValueType):
         self.attribute = attribute
         self.value_type = get_type(value_type)
 
-    def _from_xml(self, node, path):
+    def read_xml_value(self, node, path):
         text = node.get(self.attribute)
         return self.value_type.from_string(text)
 
-    def _write_xml(self, node, value):
+    def write_xml_value(self, node, value):
         text = self.value_type.to_string(value)
         node.set(self.attribute, text)
 
 
 class ObjectType(ValueType):
+    # Wraps an `Object`
     def __init__(self, cur_type):
+        assert issubclass(cur_type, Object)
         self.type = cur_type
 
-    def _from_xml(self, node, path):
+    def read_xml_value(self, node, path):
         obj = self.type()
         obj._read_xml(node, path)
         return obj
 
-    def _write_xml(self, node, obj):
+    def write_xml_value(self, node, obj):
         obj._write_xml(node)
 
 
@@ -270,21 +292,21 @@ class FactoryType(ValueType):
             # Reverse lookup
             self._nameMap[value] = key
 
-    def _from_xml(self, node, path):
+    def read_xml_value(self, node, path):
         cur_type = self._typeMap.get(node.tag)
         if cur_type is None:
             raise Exception("Invalid {} tag: {}".format(self.name, node.tag))
         value_type = get_type(cur_type)
-        return value_type._from_xml(node, path)
+        return value_type.read_xml_value(node, path)
 
-    def _get_name(self, obj):
+    def get_name(self, obj):
         cur_type = type(obj)
         name = self._nameMap.get(cur_type)
         if name is None:
             raise Exception("Invalid {} type: {}".format(self.name, cur_type))
         return name
 
-    def _write_xml(self, node, obj):
+    def write_xml_value(self, node, obj):
         obj._write_xml(node)
 
 
@@ -296,11 +318,11 @@ class DuckTypedFactory(ValueType):
         assert len(typeOrder) > 0
         self._type_order = typeOrder
 
-    def _from_xml(self, node, path):
+    def read_xml_value(self, node, path):
         error_set = []
         for value_type in self._type_order:
             try:
-                return value_type._from_xml(node, path)
+                return value_type.read_xml_value(node, path)
             except Exception as e:
                 error_set.append((value_type, e))
         # Should have returned, we encountered errors
@@ -309,12 +331,13 @@ class DuckTypedFactory(ValueType):
             out += "\nValue Type: {}\nException: {}\n".format(value_type, e)
             raise ParseError(Exception(out), path)
 
-    def _write_xml(self, node, obj):
+    def write_xml_value(self, node, obj):
+        assert isinstance(obj, Object)
         obj._write_xml(node)
 
 
 class Param(object):
-    """ Mirroring Gazebo's SDF api
+    """XML reflected parameter; serves as base class for Attribute and Element.
 
     @param xml_var: Xml name
             @todo If the value_type is an object with a tag defined in it's
@@ -325,13 +348,14 @@ class Param(object):
 
     def __init__(self, xml_var, value_type, required=True, default=None,
                  var=None):
+        self.value_type = get_type(value_type)
+        assert isinstance(self.value_type, ValueType), self.value_type
         self.xml_var = xml_var
         if var is None:
             self.var = xml_var
         else:
             self.var = var
         self.type = None
-        self.value_type = get_type(value_type)
         self.default = default
         if required:
             assert default is None, "Default does not make sense for a required field"  # noqa
@@ -346,6 +370,7 @@ class Param(object):
 
 
 class Attribute(Param):
+    """Value stored in an XML attribute."""
     def __init__(self, xml_var, value_type, required=True, default=None,
                  var=None):
         Param.__init__(self, xml_var, value_type, required, default, var)
@@ -377,6 +402,7 @@ class Attribute(Param):
 
 
 class Element(Param):
+    """Value stored in an XML element."""
     def __init__(self, xml_var, value_type, required=True, default=None,
                  var=None, is_raw=False):
         Param.__init__(self, xml_var, value_type, required, default, var)
@@ -384,7 +410,7 @@ class Element(Param):
         self.is_raw = is_raw
 
     def set_from_xml(self, obj, node, path):
-        value = self.value_type._from_xml(node, path)
+        value = self.value_type.read_xml_value(node, path)
         setattr(obj, self.var, value)
 
     def add_to_xml(self, obj, parent):
@@ -402,10 +428,11 @@ class Element(Param):
             node = parent
         else:
             node = node_add(parent, self.xml_var)
-        self.value_type._write_xml(node, value)
+        self.value_type.write_xml_value(node, value)
 
 
 class AggregateElement(Element):
+    """Indicates an element is an aggregate."""
     def __init__(self, xml_var, value_type, var=None, is_raw=False):
         if var is None:
             var = xml_var + 's'
@@ -414,7 +441,7 @@ class AggregateElement(Element):
         self.is_aggregate = True
 
     def add_from_xml(self, obj, node, path):
-        value = self.value_type._from_xml(node, path)
+        value = self.value_type.read_xml_value(node, path)
         obj._add_aggregate(self.xml_var, value)
 
     def set_default(self, obj):
@@ -422,14 +449,15 @@ class AggregateElement(Element):
 
 
 class Info:
-    """ Small container for keeping track of what's been consumed """
-
+    """Small container for keeping track of what's been consumed."""
+    # TODO(eacousineau): Rename to `Memo`.
     def __init__(self, node):
         self.attributes = list(node.attrib.keys())
         self.children = xml_children(node)
 
 
 class Reflection(object):
+    """Stores reflection information for an `Object` derived class."""
     def __init__(self, params=[], parent_cls=None, tag=None):
         """ Construct a XML reflection thing
         @param parent_cls: Parent class, to use it's reflection as well.
@@ -546,10 +574,10 @@ class Reflection(object):
                         on_error("Scalar element defined multiple times: {}".format(tag))  # noqa
                 info.children.remove(child)
 
-        # For unset attributes and scalar elements, we should not pass the attribute
-        # or element path, as those paths will implicitly not exist.
-        # If we do supply it, then the user would need to manually prune the XPath to try
-        # and find where the problematic parent element.
+        # For unset attributes and scalar elements, we should not pass the
+        # attribute or element path, as those paths will implicitly not exist.
+        # If we do supply it, then the user would need to manually prune the
+        # XPath to try and find where the problematic parent element.
         for attribute in map(self.attribute_map.get, unset_attributes):
             try:
                 attribute.set_default(obj)
@@ -587,7 +615,9 @@ class Reflection(object):
 
 
 class Object(YamlReflection):
-    """ Raw python object for yaml / xml representation """
+    """Base for user-visible classes which leverage XML reflection."""
+    # TODO(eacousineau): Remove most of the reflection-specific code to a
+    # separate instance, if possible.
     _XML_REFL = None
     XML_REFL = _now_private_property('_XML_REFL')
 
@@ -642,7 +672,7 @@ class Object(YamlReflection):
     @classmethod
     def _from_xml(cls, node, path):
         cur_type = get_type(cls)
-        return cur_type._from_xml(node, path)
+        return cur_type.read_xml_value(node, path)
 
     @classmethod
     def from_xml_string(cls, xml_string):
@@ -654,9 +684,6 @@ class Object(YamlReflection):
     def from_xml_file(cls, file_path):
         xml_string = open(file_path, 'r').read()
         return cls.from_xml_string(xml_string)
-
-    # Confusing distinction between loading code in object and reflection
-    # registry thing...
 
     get_aggregate_list = _now_private_property('_get_aggregate_list')
     aggregate_init = _now_private_property('_aggregate_init')
@@ -678,8 +705,9 @@ class Object(YamlReflection):
         self._aggregate_type = {}
 
     def _add_aggregate(self, xml_var, obj):
-        """ NOTE: One must keep careful track of aggregate types for this system.
-        Can use '_lump_aggregates()' before writing if you don't care. """
+        """ NOTE: One must keep careful track of aggregate types for this
+        system.
+        Can use '_lump_aggregates()' before writing if you don't care."""
         self._get_aggregate_list(xml_var).append(obj)
         self._aggregate_order.append(obj)
         self._aggregate_type[obj] = xml_var
@@ -712,7 +740,8 @@ class Object(YamlReflection):
 
 
 # Really common types
-# Better name: element_with_name? Attributed element?
+# TODO(eacousineau): Make this objects, not string names with weird implicit
+# rules.
 add_type('element_name', SimpleElementType('name', str))
 add_type('element_value', SimpleElementType('value', float))
 

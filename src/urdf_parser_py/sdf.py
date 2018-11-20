@@ -32,12 +32,12 @@ class Pose(_xmlr.Object):
 
     def _read_xml(self, node):
         # Better way to do this? Define type?
-        vec = _xmlr.get_type('vector6')._read_xml(node)
+        vec = _xmlr.get_type('vector6').read_xml_value(node)
         self.from_vec(vec)
 
     def _write_xml(self, node):
         vec = self.as_vec()
-        _xmlr.get_type('vector6')._write_xml(node, vec)
+        _xmlr.get_type('vector6').write_xml_value(node, vec)
 
     def _check_valid(self):
         assert self.xyz is not None or self.rpy is not None
@@ -77,7 +77,7 @@ class Inertia(_xmlr.Object):
             [self.ixz, self.iyz, self.izz]]
 
 
-_xmlr.reflect(Inertia,
+_xmlr.reflect(Inertia, tag='inertia',
              params=[_xmlr.Element(key, float) for key in Inertia._KEYS])
 
 
@@ -88,7 +88,7 @@ class Inertial(_xmlr.Object):
         self.pose = pose
 
 
-_xmlr.reflect(Inertial, params=[
+_xmlr.reflect(Inertial, tag='inertial', params=[
     _xmlr.Element('mass', float),
     _xmlr.Element('inertia', Inertia),
     _pose_element
@@ -102,12 +102,19 @@ class Link(Entity):
         self.kinematic = kinematic
 
 
-_xmlr.reflect(Link, parent_cls=Entity, params=[
+_xmlr.reflect(Link, tag='link', parent_cls=Entity, params=[
     _xmlr.Element('inertial', Inertial),
     _xmlr.Attribute('kinematic', bool, False),
     _xmlr.AggregateElement('visual', Visual, var='visuals'),
     _xmlr.AggregateElement('collision', Collision, var='collisions')
 ])
+
+
+class Joint(Entity):
+    pass
+
+
+_xmlr.reflect(Joint, tag='joint', parent_cls=Entity, params=[])
 
 
 class Model(Entity):
