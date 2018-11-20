@@ -11,9 +11,9 @@ sys.path.append(TEST_DIR)
 sys.path.append(join(dirname(TEST_DIR), 'src'))
 
 from urdf_parser_py import urdf
-import urdf_parser_py.xml_reflection as xmlr
+import urdf_parser_py._xml_reflection as _xmlr
 
-ParseError = xmlr.core.ParseError
+ParseError = _xmlr.ParseError
 
 
 class TestBase(unittest.TestCase):
@@ -29,10 +29,10 @@ class TestURDFParserError(TestBase):
         self.errors = []
         def add_error(message):
             self.errors.append(message)
-        xmlr.core.on_error = add_error
+        _xmlr.core.on_error = add_error
 
     def tearDown(self):
-        xmlr.core.on_error = xmlr.core.on_error_stderr
+        _xmlr.core.on_error = _xmlr.core.on_error_stderr
 
     def assertLoggedErrors(self, errors, func, *args, **kwds):
         func(*args, **kwds)

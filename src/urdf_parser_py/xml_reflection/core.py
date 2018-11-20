@@ -734,7 +734,7 @@ class Object(YamlReflection):
     def parse(self, xml_string):
         """ Backwards compatibility """
         node = etree.fromstring(xml_string)
-        path = Path(self.XML_REFL.tag, tree=etree.ElementTree(node))
+        path = Path(self._XML_REFL.tag, tree=etree.ElementTree(node))
         self._read_xml(node, path)
         return self
 
