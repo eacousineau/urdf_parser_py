@@ -25,6 +25,7 @@ class ParseException(Exception):
 
 class TestBase(unittest.TestCase):
   def setUp(self):
+      # Ensure that all deprecations are seen as errors.
       warnings.simplefilter('error', DeprecationWarning)
 
 
@@ -195,14 +196,17 @@ class TestDeprecation(TestBase):
     @contextmanager
     def catch_warnings(self):
         with warnings.catch_warnings(record=True) as w:
+            # Do not error; instead, only warn once.
             warnings.simplefilter('once', DeprecationWarning)
             yield w
 
-    def test_check_valid(self):
+    def test_deprecated_properties(self):
         with self.catch_warnings() as w:
+            urdf.Robot.XML_REFL
             urdf.Pose().check_valid()
-            self.assertEqual(len(w), 1)
-            self.assertIn("check_valid", str(w[0].message))
+            self.assertEqual(len(w), 2)
+            self.assertIn("'XML_REFL'", str(w[0].message))
+            self.assertIn("'check_valid'", str(w[1].message))
 
 
 class TestExampleRobots(TestBase):
