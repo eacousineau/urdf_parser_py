@@ -1,9 +1,10 @@
 from __future__ import print_function
 
-import unittest
-import mock
 import os
+import unittest
 import sys
+
+import mock
 
 # Add path to import xml_matching
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '.')))

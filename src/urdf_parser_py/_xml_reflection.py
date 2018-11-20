@@ -85,13 +85,13 @@ def to_yaml(obj):
 
 
 class SelectiveReflection(object):
-    def get_refl_vars(self):
+    def _get_refl_vars(self):
         return list(vars(self).keys())
 
 
 class YamlReflection(SelectiveReflection):
     def to_yaml(self):
-        raw = dict((var, getattr(self, var)) for var in self.get_refl_vars())
+        raw = dict((var, getattr(self, var)) for var in self._get_refl_vars())
         return to_yaml(raw)
 
     def __str__(self):
@@ -103,7 +103,7 @@ def reflect(cls, *args, **kwargs):
     """
     Simple wrapper to add XML reflection to an xml_reflection.Object class
     """
-    cls.XML_REFL = Reflection(*args, **kwargs)
+    cls._XML_REFL = Reflection(*args, **kwargs)
 
 # Rename 'write_xml' to 'write_xml' to have paired 'load/dump', and make
 # 'pre_dump' and 'post_load'?
@@ -327,11 +327,11 @@ class DuckTypedFactory(ValueType):
     def __init__(self, name, typeOrder):
         self.name = name
         assert len(typeOrder) > 0
-        self.type_order = typeOrder
+        self._type_order = typeOrder
 
     def from_xml(self, node):
         error_set = []
-        for value_type in self.type_order:
+        for value_type in self._type_order:
             try:
                 return value_type.from_xml(node)
             except Exception as e:
@@ -445,7 +445,7 @@ class AggregateElement(Element):
 
     def add_from_xml(self, obj, node):
         value = self.value_type.from_xml(node)
-        obj.add_aggregate(self.xml_var, value)
+        obj._add_aggregate(self.xml_var, value)
 
     def set_default(self, obj):
         pass
@@ -468,7 +468,7 @@ class Reflection(object):
                 definition thing.
         """
         if parent_cls is not None:
-            self.parent = parent_cls.XML_REFL
+            self.parent = parent_cls._XML_REFL
         else:
             self.parent = None
         self.tag = tag
@@ -570,33 +570,33 @@ class Reflection(object):
             element.add_to_xml(obj, node)
         # Now add in aggregates
         if self.aggregates:
-            obj.add_aggregates_to_xml(node)
+            obj._add_aggregates_to_xml(node)
 
 
 class Object(YamlReflection):
     """ Raw python object for yaml / xml representation """
-    XML_REFL = None
+    _XML_REFL = None
 
-    def get_refl_vars(self):
-        return self.XML_REFL.vars
+    def _get_refl_vars(self):
+        return self._XML_REFL.vars
 
-    def check_valid(self):
+    def _check_valid(self):
         pass
 
-    def pre_write_xml(self):
+    def _pre_write_xml(self):
         """ If anything needs to be converted prior to dumping to xml
         i.e., getting the names of objects and such """
         pass
 
     def write_xml(self, node):
         """ Adds contents directly to XML node """
-        self.check_valid()
-        self.pre_write_xml()
-        self.XML_REFL.add_to_xml(self, node)
+        self._check_valid()
+        self._pre_write_xml()
+        self._XML_REFL.add_to_xml(self, node)
 
     def to_xml(self):
         """ Creates an overarching tag and adds its contents to the node """
-        tag = self.XML_REFL.tag
+        tag = self._XML_REFL.tag
         assert tag is not None, "Must define 'tag' in reflection to use this function"  # noqa
         doc = etree.Element(tag)
         self.write_xml(doc)
@@ -605,13 +605,13 @@ class Object(YamlReflection):
     def to_xml_string(self, addHeader=True):
         return xml_string(self.to_xml(), addHeader)
 
-    def post_read_xml(self):
+    def _post_read_xml(self):
         pass
 
     def read_xml(self, node):
-        self.XML_REFL.set_from_xml(self, node)
-        self.post_read_xml()
-        self.check_valid()
+        self._XML_REFL.set_from_xml(self, node)
+        self._post_read_xml()
+        self._check_valid()
 
     @classmethod
     def from_xml(cls, node):
@@ -631,47 +631,47 @@ class Object(YamlReflection):
     # Confusing distinction between loading code in object and reflection
     # registry thing...
 
-    def get_aggregate_list(self, xml_var):
-        var = self.XML_REFL.paramMap[xml_var].var
+    def _get_aggregate_list(self, xml_var):
+        var = self._XML_REFL.paramMap[xml_var].var
         values = getattr(self, var)
         assert isinstance(values, list)
         return values
 
-    def aggregate_init(self):
+    def _aggregate_init(self):
         """ Must be called in constructor! """
-        self.aggregate_order = []
+        self._aggregate_order = []
         # Store this info in the loaded object??? Nah
-        self.aggregate_type = {}
+        self._aggregate_type = {}
 
-    def add_aggregate(self, xml_var, obj):
+    def _add_aggregate(self, xml_var, obj):
         """ NOTE: One must keep careful track of aggregate types for this system.
-        Can use 'lump_aggregates()' before writing if you don't care. """
-        self.get_aggregate_list(xml_var).append(obj)
-        self.aggregate_order.append(obj)
-        self.aggregate_type[obj] = xml_var
+        Can use '_lump_aggregates()' before writing if you don't care. """
+        self._get_aggregate_list(xml_var).append(obj)
+        self._aggregate_order.append(obj)
+        self._aggregate_type[obj] = xml_var
 
-    def add_aggregates_to_xml(self, node):
-        for value in self.aggregate_order:
-            typeName = self.aggregate_type[value]
-            element = self.XML_REFL.element_map[typeName]
+    def _add_aggregates_to_xml(self, node):
+        for value in self._aggregate_order:
+            typeName = self._aggregate_type[value]
+            element = self._XML_REFL.element_map[typeName]
             element.add_scalar_to_xml(node, value)
 
-    def remove_aggregate(self, obj):
-        self.aggregate_order.remove(obj)
-        xml_var = self.aggregate_type[obj]
-        del self.aggregate_type[obj]
-        self.get_aggregate_list(xml_var).remove(obj)
+    def _remove_aggregate(self, obj):
+        self._aggregate_order.remove(obj)
+        xml_var = self._aggregate_type[obj]
+        del self._aggregate_type[obj]
+        self._get_aggregate_list(xml_var).remove(obj)
 
-    def lump_aggregates(self):
+    def _lump_aggregates(self):
         """ Put all aggregate types together, just because """
-        self.aggregate_init()
-        for param in self.XML_REFL.aggregates:
-            for obj in self.get_aggregate_list(param.xml_var):
-                self.add_aggregate(param.var, obj)
+        self._aggregate_init()
+        for param in self._XML_REFL.aggregates:
+            for obj in self._get_aggregate_list(param.xml_var):
+                self._add_aggregate(param.var, obj)
 
-    """ Compatibility """
-
+    
     def parse(self, xml_string):
+        """ Backwards compatibility """
         node = etree.fromstring(xml_string)
         self.read_xml(node)
         return self

@@ -2,6 +2,8 @@
 Changelog for package urdfdom_py
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+* Deprecate public access to `_xml_reflection`
+
 0.3.3 (2017-02-10)
 ------------------
 * Made Chris and Shane the maintainers
