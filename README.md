@@ -15,15 +15,16 @@
 ## Features
 
 *   URDF
-    * XML parsing. 
-*   Very basic coverage of SDF
+*   SDF (very basic coverage)
 *   XML Saving / Loading
     * Some attempts to preserve original ordering; comments are stripped out,
     however.
 
 ## Todo
 
-1.  Make a direct, two-way URDF <-> SDF converter.
+1.  Deprecate public access to `xml_reflection`.
+2.  Make a direct, two-way URDF <-> SDF converter when kinematics are not an
+    issue.
 
 ## Development Setup
 
