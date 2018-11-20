@@ -2,7 +2,7 @@
 Changelog for package urdfdom_py
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-* Deprecate public access to `_xml_reflection`
+* Deprecate internal details of `xml_reflection` classes.
 
 0.3.3 (2017-02-10)
 ------------------

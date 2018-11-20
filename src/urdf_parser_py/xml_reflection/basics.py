@@ -1,5 +1,4 @@
 # TODO(eacousineau): Deprecate public access.
-
 import collections
 import string
 # TODO(eacousineau): Leverage tfoote's PR.

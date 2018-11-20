@@ -1,8 +1,6 @@
 from urdf_parser_py import _now_private_property
 import urdf_parser_py._xml_reflection as _xmlr
 
-# What is the scope of plugins? Model, World, Sensor?
-
 _xmlr.start_namespace('sdf')
 
 
