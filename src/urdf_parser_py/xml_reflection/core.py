@@ -17,6 +17,8 @@ __all__ = [
     "add_type",
     "get_type",
     "make_type",
+    "Path",
+    "ParseError",
     "ValueType",
     "BasicType",
     "ListType",
@@ -121,10 +123,10 @@ def make_type(cur_type):
 
 class Path(object):
     def __init__(self, tag, parent=None, suffix="", tree=None):
-	self.parent = parent
-	self.tag = tag
-	self.suffix = suffix
-	self.tree = tree # For validating general path (getting true XML path)
+        self.parent = parent
+        self.tag = tag
+        self.suffix = suffix
+        self.tree = tree # For validating general path (getting true XML path)
 
     def __str__(self):
         if self.parent is not None:
@@ -135,12 +137,13 @@ class Path(object):
             else:
                 return self.suffix
 
+
 class ParseError(Exception):
     def __init__(self, e, path):
-	self.e = e
-	self.path = path
-	message = "ParseError in {}:\n{}".format(self.path, self.e)
-	super(ParseError, self).__init__(message)
+        self.e = e
+        self.path = path
+        message = "ParseError in {}:\n{}".format(self.path, self.e)
+        super(ParseError, self).__init__(message)
 
 
 class ValueType(object):
@@ -502,7 +505,7 @@ class Reflection(object):
             element_path = Path(element.xml_var, parent = path)
             # Add an index (allow this to be overriden)
             if element.is_aggregate:
-                values = obj.get_aggregate_list(element.xml_var)
+                values = obj._get_aggregate_list(element.xml_var)
                 index = 1 + len(values) # 1-based indexing for W3C XPath
                 element_path.suffix = "[{}]".format(index)
             return element_path
@@ -653,6 +656,7 @@ class Object(YamlReflection):
     # registry thing...
 
     get_aggregate_list = _now_private_property('_get_aggregate_list')
+    aggregate_init = _now_private_property('_aggregate_init')
     add_aggregate = _now_private_property('_add_aggregate')
     add_aggregates_to_xml = _now_private_property('_add_aggregates_to_xml')
     remove_aggregate = _now_private_property('_remove_aggregate')

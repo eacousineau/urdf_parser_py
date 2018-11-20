@@ -19,6 +19,7 @@ from urdf_parser_py import urdf  # noqa
 import urdf_parser_py._xml_reflection as _xmlr
 from xml_matching import xml_matches  # noqa
 
+
 class ParseException(_xmlr.ParseError):
     def __init__(self, e = "", path = ""):
         super(ParseException, self).__init__(e, path)
@@ -230,7 +231,7 @@ class LinkOriginTestCase(TestBase):
         self.assertEquals(origin.rpy, [0, 0, 0])
 
 
-class LinkMultiVisualsAndCollisionsTest(unittest.TestCase):
+class LinkMultiVisualsAndCollisionsTest(TestBase):
 
     xml = '''<?xml version="1.0"?>
 <robot name="test">

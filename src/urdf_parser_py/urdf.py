@@ -350,7 +350,7 @@ _xmlr.reflect(Joint, tag='joint', params=[
 class Link(_xmlr.Object):
     def __init__(self, name=None, visual=None, inertial=None, collision=None,
                  origin=None):
-        self.aggregate_init()
+        self._aggregate_init()
         self.name = name
         self.visuals = []
         self.inertial = inertial
