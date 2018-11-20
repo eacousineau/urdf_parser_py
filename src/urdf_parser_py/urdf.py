@@ -1,10 +1,5 @@
 from urdf_parser_py import _now_private_property
-from urdf_parser_py.xml_reflection.basics import *
 import urdf_parser_py._xml_reflection as _xmlr
-
-# Add a 'namespace' for names to avoid a conflict between URDF and SDF?
-# A type registry? How to scope that? Just make a 'global' type pointer?
-# Or just qualify names? urdf.geometric, sdf.geometric
 
 _xmlr.start_namespace('urdf')
 
@@ -18,8 +13,8 @@ class Pose(_xmlr.Object):
         self.rpy = rpy
 
     def _check_valid(self):
-        assert (self.xyz is None or len(self.xyz) == 3) and \
-            (self.rpy is None or len(self.rpy) == 3)
+        assert (self.xyz is None or len(self.xyz) == 3 and
+                self.rpy is None or len(self.rpy) == 3)
 
     # Aliases for backwards compatibility
     @property
@@ -124,7 +119,7 @@ _xmlr.reflect(Mesh, params=[
 ])
 
 
-class GeometricType(_xmlr.ValueType):
+class _GeometricType(_xmlr.ValueType):
     def __init__(self):
         self.factory = _xmlr.FactoryType('geometric', {
             'box': Box,
@@ -134,7 +129,7 @@ class GeometricType(_xmlr.ValueType):
         })
 
     def from_xml(self, node):
-        children = xml_children(node)
+        children = _xmlr.xml_children(node)
         assert len(children) == 1, 'One element only for geometric'
         return self.factory.from_xml(children[0])
 
@@ -144,7 +139,11 @@ class GeometricType(_xmlr.ValueType):
         obj.write_xml(child)
 
 
-_xmlr.add_type('geometric', GeometricType())
+# Now private.
+GeometricType = _GeometricType
+
+
+_xmlr.add_type('geometric', _GeometricType())
 
 
 class Collision(_xmlr.Object):
@@ -455,6 +454,8 @@ class Robot(_xmlr.Object):
 
         self.parent_map = {}
         self.child_map = {}
+
+    add_aggregate = _now_private_property('_add_aggregate')
 
     def _add_aggregate(self, typeName, elem):
         _xmlr.Object._add_aggregate(self, typeName, elem)

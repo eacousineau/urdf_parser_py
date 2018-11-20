@@ -7,14 +7,16 @@ import warnings
 
 
 class _NowPrivateDescriptor(object):
+    # Implements the descriptor interface to warn about deprecated access.
     def __init__(self, private):
         self._private = private
-        self.__doc__ = "Deprecated propery"
+        self._old_public = self._private.lstrip('_')
+        self.__doc__ = "Deprecated propery '{}'".format(self._old_public)
 
     def _warn(self):
-        non_private = self._private.lstrip('_')
         warnings.warn(
-            "{} is now private; please do not use.".format(non_private),
+            "'{}' is deprecated, and will be removed in future releases."
+                .format(self._old_public),
             category=DeprecationWarning, stacklevel=2)
 
     def __get__(self, obj, objtype):
