@@ -20,7 +20,7 @@ class ParseException(Exception):
 
 
 class TestURDFParser(unittest.TestCase):
-    @mock.patch('urdf_parser_py.xml_reflection.on_error',
+    @mock.patch('urdf_parser_py._xml_reflection.on_error',
                 mock.Mock(side_effect=ParseException))
     def parse(self, xml):
         return urdf.Robot.from_xml_string(xml)
@@ -145,7 +145,7 @@ class TestURDFParser(unittest.TestCase):
 
 
 class LinkOriginTestCase(unittest.TestCase):
-    @mock.patch('urdf_parser_py.xml_reflection.on_error',
+    @mock.patch('urdf_parser_py._xml_reflection.on_error',
                 mock.Mock(side_effect=ParseException))
     def parse(self, xml):
         return urdf.Robot.from_xml_string(xml)
