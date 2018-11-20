@@ -149,7 +149,7 @@ class ParseError(Exception):
 class ValueType(object):
     """ Primitive value type """
 
-    def from_xml(self, node, path):
+    def _from_xml(self, node, path):
         return self.from_string(node.text)
 
     def write_xml(self, node, value):
@@ -213,7 +213,7 @@ class RawType(ValueType):
     Simple, raw XML value. Need to bugfix putting this back into a document
     """
 
-    def from_xml(self, node, path):
+    def _from_xml(self, node, path):
         return node
 
     def write_xml(self, node, value):
@@ -236,7 +236,7 @@ class SimpleElementType(ValueType):
         self.attribute = attribute
         self.value_type = get_type(value_type)
 
-    def from_xml(self, node, path):
+    def _from_xml(self, node, path):
         text = node.get(self.attribute)
         return self.value_type.from_string(text)
 
@@ -249,9 +249,9 @@ class ObjectType(ValueType):
     def __init__(self, cur_type):
         self.type = cur_type
 
-    def from_xml(self, node, path):
+    def _from_xml(self, node, path):
         obj = self.type()
-        obj.read_xml(node, path)
+        obj._read_xml(node, path)
         return obj
 
     def write_xml(self, node, obj):
@@ -270,12 +270,12 @@ class FactoryType(ValueType):
             # Reverse lookup
             self._nameMap[value] = key
 
-    def from_xml(self, node, path):
+    def _from_xml(self, node, path):
         cur_type = self._typeMap.get(node.tag)
         if cur_type is None:
             raise Exception("Invalid {} tag: {}".format(self.name, node.tag))
         value_type = get_type(cur_type)
-        return value_type.from_xml(node, path)
+        return value_type._from_xml(node, path)
 
     def _get_name(self, obj):
         cur_type = type(obj)
@@ -296,11 +296,11 @@ class DuckTypedFactory(ValueType):
         assert len(typeOrder) > 0
         self._type_order = typeOrder
 
-    def from_xml(self, node, path):
+    def _from_xml(self, node, path):
         error_set = []
         for value_type in self._type_order:
             try:
-                return value_type.from_xml(node, path)
+                return value_type._from_xml(node, path)
             except Exception as e:
                 error_set.append((value_type, e))
         # Should have returned, we encountered errors
@@ -384,7 +384,7 @@ class Element(Param):
         self.is_raw = is_raw
 
     def set_from_xml(self, obj, node, path):
-        value = self.value_type.from_xml(node, path)
+        value = self.value_type._from_xml(node, path)
         setattr(obj, self.var, value)
 
     def add_to_xml(self, obj, parent):
@@ -414,7 +414,7 @@ class AggregateElement(Element):
         self.is_aggregate = True
 
     def add_from_xml(self, obj, node, path):
-        value = self.value_type.from_xml(node, path)
+        value = self.value_type._from_xml(node, path)
         obj._add_aggregate(self.xml_var, value)
 
     def set_default(self, obj):
@@ -600,6 +600,8 @@ class Object(YamlReflection):
     check_valid = _now_private_property('_check_valid')
     pre_write_xml = _now_private_property('_pre_write_xml')
     post_read_xml = _now_private_property('_post_read_xml')
+    read_xml = _now_private_property('_read_xml')
+    from_xml = _now_private_property('_from_xml')
 
     def _pre_write_xml(self):
         """ If anything needs to be converted prior to dumping to xml
@@ -626,7 +628,7 @@ class Object(YamlReflection):
     def _post_read_xml(self):
         pass
 
-    def read_xml(self, node, path):
+    def _read_xml(self, node, path):
         self._XML_REFL.set_from_xml(self, node, path)
         self._post_read_xml()
         try:
@@ -637,15 +639,15 @@ class Object(YamlReflection):
             raise ParseError(e, path)
 
     @classmethod
-    def from_xml(cls, node, path):
+    def _from_xml(cls, node, path):
         cur_type = get_type(cls)
-        return cur_type.from_xml(node, path)
+        return cur_type._from_xml(node, path)
 
     @classmethod
     def from_xml_string(cls, xml_string):
         node = etree.fromstring(xml_string)
         path = Path(cls._XML_REFL.tag, tree=etree.ElementTree(node))
-        return cls.from_xml(node, path)
+        return cls._from_xml(node, path)
 
     @classmethod
     def from_xml_file(cls, file_path):
@@ -704,7 +706,7 @@ class Object(YamlReflection):
         """ Backwards compatibility """
         node = etree.fromstring(xml_string)
         path = Path(self.XML_REFL.tag, tree=etree.ElementTree(node))
-        self.read_xml(node, path)
+        self._read_xml(node, path)
         return self
 
 
