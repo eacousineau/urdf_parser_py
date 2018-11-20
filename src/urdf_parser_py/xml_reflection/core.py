@@ -152,9 +152,9 @@ class ValueType(object):
     def _from_xml(self, node, path):
         return self.from_string(node.text)
 
-    def write_xml(self, node, value):
+    def _write_xml(self, node, value):
         """
-        If type has 'write_xml', this function should expect to have it's own
+        If type has '_write_xml', this function should expect to have it's own
         XML already created i.e., In Axis.to_sdf(self, node), 'node' would be
         the 'axis' element.
         @todo Add function that makes an XML node completely independently?
@@ -216,7 +216,7 @@ class RawType(ValueType):
     def _from_xml(self, node, path):
         return node
 
-    def write_xml(self, node, value):
+    def _write_xml(self, node, value):
         # @todo rying to insert an element at root level seems to screw up
         # pretty printing
         children = xml_children(value)
@@ -240,7 +240,7 @@ class SimpleElementType(ValueType):
         text = node.get(self.attribute)
         return self.value_type.from_string(text)
 
-    def write_xml(self, node, value):
+    def _write_xml(self, node, value):
         text = self.value_type.to_string(value)
         node.set(self.attribute, text)
 
@@ -254,8 +254,8 @@ class ObjectType(ValueType):
         obj._read_xml(node, path)
         return obj
 
-    def write_xml(self, node, obj):
-        obj.write_xml(node)
+    def _write_xml(self, node, obj):
+        obj._write_xml(node)
 
 
 class FactoryType(ValueType):
@@ -284,8 +284,8 @@ class FactoryType(ValueType):
             raise Exception("Invalid {} type: {}".format(self.name, cur_type))
         return name
 
-    def write_xml(self, node, obj):
-        obj.write_xml(node)
+    def _write_xml(self, node, obj):
+        obj._write_xml(node)
 
 
 class DuckTypedFactory(ValueType):
@@ -309,8 +309,8 @@ class DuckTypedFactory(ValueType):
             out += "\nValue Type: {}\nException: {}\n".format(value_type, e)
             raise ParseError(Exception(out), path)
 
-    def write_xml(self, node, obj):
-        obj.write_xml(node)
+    def _write_xml(self, node, obj):
+        obj._write_xml(node)
 
 
 class Param(object):
@@ -402,7 +402,7 @@ class Element(Param):
             node = parent
         else:
             node = node_add(parent, self.xml_var)
-        self.value_type.write_xml(node, value)
+        self.value_type._write_xml(node, value)
 
 
 class AggregateElement(Element):
@@ -600,6 +600,7 @@ class Object(YamlReflection):
     check_valid = _now_private_property('_check_valid')
     pre_write_xml = _now_private_property('_pre_write_xml')
     post_read_xml = _now_private_property('_post_read_xml')
+    write_xml = _now_private_property('_write_xml')
     read_xml = _now_private_property('_read_xml')
     from_xml = _now_private_property('_from_xml')
 
@@ -608,7 +609,7 @@ class Object(YamlReflection):
         i.e., getting the names of objects and such """
         pass
 
-    def write_xml(self, node):
+    def _write_xml(self, node):
         """ Adds contents directly to XML node """
         self._check_valid()
         self._pre_write_xml()
@@ -619,7 +620,7 @@ class Object(YamlReflection):
         tag = self._XML_REFL.tag
         assert tag is not None, "Must define 'tag' in reflection to use this function"  # noqa
         doc = etree.Element(tag)
-        self.write_xml(doc)
+        self._write_xml(doc)
         return doc
 
     def to_xml_string(self, addHeader=True):
