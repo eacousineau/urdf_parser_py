@@ -30,7 +30,7 @@ class Pose(_xmlr.Object):
     def position(self, value): self.xyz = value
 
 
-_xmlr.reflect(Pose, params=[
+_xmlr.reflect(Pose, tag='origin', params=[
     _xmlr.Attribute('xyz', 'vector3', required=False, default=[0, 0, 0]),
     _xmlr.Attribute('rpy', 'vector3', required=False, default=[0, 0, 0])
 ])
@@ -58,7 +58,7 @@ class Color(_xmlr.Object):
                 raise Exception('Invalid color argument count')
 
 
-_xmlr.reflect(Color, params=[
+_xmlr.reflect(Color, tag='color', params=[
     _xmlr.Attribute('rgba', 'vector4')
 ])
 
@@ -69,7 +69,7 @@ class JointDynamics(_xmlr.Object):
         self.friction = friction
 
 
-_xmlr.reflect(JointDynamics, params=[
+_xmlr.reflect(JointDynamics, tag='dynamics', params=[
     _xmlr.Attribute('damping', float, required=False),
     _xmlr.Attribute('friction', float, required=False)
 ])
@@ -80,7 +80,7 @@ class Box(_xmlr.Object):
         self.size = size
 
 
-_xmlr.reflect(Box, params=[
+_xmlr.reflect(Box, tag='box', params=[
     _xmlr.Attribute('size', 'vector3')
 ])
 
@@ -91,7 +91,7 @@ class Cylinder(_xmlr.Object):
         self.length = length
 
 
-_xmlr.reflect(Cylinder, params=[
+_xmlr.reflect(Cylinder, tag='cylinder', params=[
     _xmlr.Attribute('radius', float),
     _xmlr.Attribute('length', float)
 ])
@@ -102,7 +102,7 @@ class Sphere(_xmlr.Object):
         self.radius = radius
 
 
-_xmlr.reflect(Sphere, params=[
+_xmlr.reflect(Sphere, tag='sphere', params=[
     _xmlr.Attribute('radius', float)
 ])
 
@@ -113,7 +113,7 @@ class Mesh(_xmlr.Object):
         self.scale = scale
 
 
-_xmlr.reflect(Mesh, params=[
+_xmlr.reflect(Mesh, tag='mesh', params=[
     _xmlr.Attribute('filename', str),
     _xmlr.Attribute('scale', 'vector3', required=False)
 ])
@@ -128,10 +128,10 @@ class _GeometricType(_xmlr.ValueType):
             'mesh': Mesh
         })
 
-    def from_xml(self, node):
+    def from_xml(self, node, path):
         children = _xmlr.xml_children(node)
         assert len(children) == 1, 'One element only for geometric'
-        return self.factory.from_xml(children[0])
+        return self.factory.from_xml(children[0], path=path)
 
     def write_xml(self, node, obj):
         name = self.factory._get_name(obj)
@@ -152,7 +152,7 @@ class Collision(_xmlr.Object):
         self.origin = origin
 
 
-_xmlr.reflect(Collision, params=[
+_xmlr.reflect(Collision, tag='collision', params=[
     _origin_element,
     _xmlr.Element('geometry', 'geometric')
 ])
@@ -163,7 +163,7 @@ class Texture(_xmlr.Object):
         self.filename = filename
 
 
-_xmlr.reflect(Texture, params=[
+_xmlr.reflect(Texture, tag='texture', params=[
     _xmlr.Attribute('filename', str)
 ])
 
@@ -179,7 +179,7 @@ class Material(_xmlr.Object):
             _xmlr.on_error("Material has neither a color nor texture.")
 
 
-_xmlr.reflect(Material, params=[
+_xmlr.reflect(Material, tag='material', params=[
     _name_attribute,
     _xmlr.Element('color', Color, False),
     _xmlr.Element('texture', Texture, False)
@@ -198,7 +198,7 @@ class Visual(_xmlr.Object):
         self.origin = origin
 
 
-_xmlr.reflect(Visual, params=[
+_xmlr.reflect(Visual, tag='visual', params=[
     _origin_element,
     _xmlr.Element('geometry', 'geometric'),
     _xmlr.Element('material', LinkMaterial, False)
@@ -223,8 +223,8 @@ class Inertia(_xmlr.Object):
             [self.ixz, self.iyz, self.izz]]
 
 
-_xmlr.reflect(Inertia,
-             params=[_xmlr.Attribute(key, float) for key in Inertia.KEYS])
+_xmlr.reflect(Inertia, tag='inertia',
+              params=[_xmlr.Attribute(key, float) for key in Inertia.KEYS])
 
 
 class Inertial(_xmlr.Object):
@@ -234,7 +234,7 @@ class Inertial(_xmlr.Object):
         self.origin = origin
 
 
-_xmlr.reflect(Inertial, params=[
+_xmlr.reflect(Inertial, tag='inertial', params=[
     _origin_element,
     _xmlr.Element('mass', 'element_value'),
     _xmlr.Element('inertia', Inertia, required=False)
@@ -248,7 +248,7 @@ class JointCalibration(_xmlr.Object):
         self.falling = falling
 
 
-_xmlr.reflect(JointCalibration, params=[
+_xmlr.reflect(JointCalibration, tag='calibration', params=[
     _xmlr.Attribute('rising', float, required=False, default=0),
     _xmlr.Attribute('falling', float, required=False, default=0)
 ])
@@ -262,7 +262,7 @@ class JointLimit(_xmlr.Object):
         self.upper = upper
 
 
-_xmlr.reflect(JointLimit, params=[
+_xmlr.reflect(JointLimit, tag='limit', params=[
     _xmlr.Attribute('effort', float),
     _xmlr.Attribute('lower', float, required=False, default=0),
     _xmlr.Attribute('upper', float, required=False, default=0),
@@ -279,7 +279,7 @@ class JointMimic(_xmlr.Object):
         self.offset = offset
 
 
-_xmlr.reflect(JointMimic, params=[
+_xmlr.reflect(JointMimic, tag='mimic', params=[
     _xmlr.Attribute('joint', str),
     _xmlr.Attribute('multiplier', float, required=False),
     _xmlr.Attribute('offset', float, required=False)
@@ -294,7 +294,7 @@ class SafetyController(_xmlr.Object):
         self.soft_upper_limit = upper
 
 
-_xmlr.reflect(SafetyController, params=[
+_xmlr.reflect(SafetyController, tag='safety_controller', params=[
     _xmlr.Attribute('k_velocity', float),
     _xmlr.Attribute('k_position', float, required=False, default=0),
     _xmlr.Attribute('soft_lower_limit', float, required=False, default=0),
@@ -332,7 +332,7 @@ class Joint(_xmlr.Object):
     @joint_type.setter
     def joint_type(self, value): self.type = value
 
-_xmlr.reflect(Joint, params=[
+_xmlr.reflect(Joint, tag='joint', params=[
     _name_attribute,
     _xmlr.Attribute('type', str),
     _origin_element,
@@ -350,18 +350,48 @@ _xmlr.reflect(Joint, params=[
 class Link(_xmlr.Object):
     def __init__(self, name=None, visual=None, inertial=None, collision=None,
                  origin=None):
+        self.aggregate_init()
         self.name = name
-        self.visual = visual
+        self.visuals = []
         self.inertial = inertial
-        self.collision = collision
+        self.collisions = []
         self.origin = origin
 
-_xmlr.reflect(Link, params=[
+    def __get_visual(self):
+        """Return the first visual or None."""
+        if self.visuals:
+            return self.visuals[0]
+
+    def __set_visual(self, visual):
+        """Set the first visual."""
+        if self.visuals:
+            self.visuals[0] = visual
+        else:
+            self.visuals.append(visual)
+
+    def __get_collision(self):
+        """Return the first collision or None."""
+        if self.collisions:
+            return self.collisions[0]
+
+    def __set_collision(self, collision):
+        """Set the first collision."""
+        if self.collisions:
+            self.collisions[0] = collision
+        else:
+            self.collisions.append(collision)
+
+    # Properties for backwards compatibility
+    visual = property(__get_visual, __set_visual)
+    collision = property(__get_collision, __set_collision)
+
+
+_xmlr.reflect(Link, tag='link', params=[
     _name_attribute,
     _origin_element,
-    _xmlr.Element('inertial', Inertial, required=False),
-    _xmlr.Element('visual', Visual, required=False),
-    _xmlr.Element('collision', Collision, required=False)
+    _xmlr.AggregateElement('visual', Visual),
+    _xmlr.AggregateElement('collision', Collision),
+    _xmlr.Element('inertial', Inertial, False),
 ])
 
 

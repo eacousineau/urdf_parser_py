@@ -23,9 +23,6 @@ __all__ = [
     "etree",
 ]
 
-# Do parent operations after, to allow child to 'override' parameters?
-# Need to make sure that duplicate entires do not get into the 'unset*' lists
-
 
 def xml_string(rootXml, addHeader=True):
     # Meh

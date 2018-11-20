@@ -16,11 +16,12 @@ sys.path.append(TEST_DIR)
 sys.path.append(join(dirname(TEST_DIR), 'src'))
 
 from urdf_parser_py import urdf  # noqa
+import urdf_parser_py._xml_reflection as _xmlr
 from xml_matching import xml_matches  # noqa
 
-
-class ParseException(Exception):
-    pass
+class ParseException(_xmlr.ParseError):
+    def __init__(self, e = "", path = ""):
+        super(ParseException, self).__init__(e, path)
 
 
 class TestBase(unittest.TestCase):
@@ -153,6 +154,44 @@ class TestURDFParser(TestBase):
 </robot>'''
         self.assertRaises(ParseException, self.parse, xml)
 
+    def test_link_multiple_visual(self):
+        xml = '''<?xml version="1.0"?>
+<robot name="test">
+  <link name="link">
+    <visual>
+      <geometry>
+        <cylinder length="1" radius="1"/>
+      </geometry>
+      <material name="mat"/>
+    </visual>
+    <visual>
+      <geometry>
+        <cylinder length="4" radius="0.5"/>
+      </geometry>
+      <material name="mat2"/>
+    </visual>
+  </link>
+</robot>'''
+        self.parse_and_compare(xml)
+
+    def test_link_multiple_collision(self):
+        xml = '''<?xml version="1.0"?>
+<robot name="test">
+  <link name="link">
+    <collision>
+      <geometry>
+        <cylinder length="1" radius="1"/>
+      </geometry>
+    </collision>
+    <collision>
+      <geometry>
+        <cylinder length="4" radius="0.5"/>
+      </geometry>
+    </collision>
+  </link>
+</robot>'''
+        self.parse_and_compare(xml)
+
 
 class LinkOriginTestCase(TestBase):
     @mock.patch('urdf_parser_py._xml_reflection.on_error',
@@ -189,6 +228,62 @@ class LinkOriginTestCase(TestBase):
         origin = robot.links[0].inertial.origin
         self.assertEquals(origin.xyz, [1, 2, 3])
         self.assertEquals(origin.rpy, [0, 0, 0])
+
+
+class LinkMultiVisualsAndCollisionsTest(unittest.TestCase):
+
+    xml = '''<?xml version="1.0"?>
+<robot name="test">
+  <link name="link">
+    <visual>
+      <geometry>
+        <cylinder length="1" radius="1"/>
+      </geometry>
+      <material name="mat"/>
+    </visual>
+    <visual>
+      <geometry>
+        <cylinder length="4" radius="0.5"/>
+      </geometry>
+      <material name="mat2"/>
+    </visual>
+    <collision>
+      <geometry>
+        <cylinder length="1" radius="1"/>
+      </geometry>
+    </collision>
+    <collision>
+      <geometry>
+        <cylinder length="4" radius="0.5"/>
+      </geometry>
+    </collision>
+  </link>
+  <link name="link2"/>
+</robot>'''
+
+    def test_multi_visual_access(self):
+        robot = urdf.Robot.from_xml_string(self.xml)
+        self.assertEquals(2, len(robot.links[0].visuals))
+        self.assertEqual(
+            id(robot.links[0].visuals[0]), id(robot.links[0].visual))
+
+        self.assertEquals(None, robot.links[1].visual)
+
+        dummyObject = set()
+        robot.links[0].visual = dummyObject
+        self.assertEquals(id(dummyObject), id(robot.links[0].visuals[0]))
+
+    def test_multi_collision_access(self):
+        robot = urdf.Robot.from_xml_string(self.xml)
+        self.assertEquals(2, len(robot.links[0].collisions))
+        self.assertEqual(
+            id(robot.links[0].collisions[0]), id(robot.links[0].collision))
+
+        self.assertEquals(None, robot.links[1].collision)
+
+        dummyObject = set()
+        robot.links[0].collision = dummyObject
+        self.assertEquals(id(dummyObject), id(robot.links[0].collisions[0]))
 
 
 class TestDeprecation(TestBase):
