@@ -1,19 +1,20 @@
 from __future__ import print_function
 
-import os
+from os.path import abspath, dirname, join
 import unittest
 import sys
+from xml.dom import minidom  # noqa
 
 import mock
 
 # Add path to import xml_matching
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '.')))
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__),
-                                             '../src')))
+# TODO(eacousineau): Can CTest somehow provide this?
+TEST_DIR = dirname(abspath(__file__))
+sys.path.append(TEST_DIR)
+sys.path.append(join(dirname(TEST_DIR), 'src'))
 
-from xml.dom import minidom  # noqa
-from xml_matching import xml_matches  # noqa
 from urdf_parser_py import urdf  # noqa
+from xml_matching import xml_matches  # noqa
 
 
 class ParseException(Exception):
@@ -180,6 +181,16 @@ class LinkOriginTestCase(unittest.TestCase):
         origin = robot.links[0].inertial.origin
         self.assertEquals(origin.xyz, [1, 2, 3])
         self.assertEquals(origin.rpy, [0, 0, 0])
+
+
+class TestExampleRobots(unittest.TestCase):
+    """Tests that some samples files can be parsed without error."""
+    @unittest.skip("Badly formatted transmissions")
+    def test_calvin_urdf(self):
+        urdf.Robot.from_xml_file(join(TEST_DIR, 'calvin/calvin.urdf'))
+
+    def test_romeo_urdf(self):
+        urdf.Robot.from_xml_file(join(TEST_DIR, 'romeo/romeo.urdf'))
 
 
 if __name__ == '__main__':

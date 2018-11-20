@@ -14,7 +14,8 @@
 	* XML parsing. 
 * 	Very basic coverage of SDF
 *	XML Saving / Loading
-	* Some attempts to preserve original ordering and formatting.
+	* Some attempts to preserve original ordering; comments are stripped out,
+    however.
 
 ## Todo
 
